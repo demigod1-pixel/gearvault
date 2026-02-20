@@ -3,7 +3,11 @@ from pathlib import Path
 from django.urls import reverse_lazy
 
 
+
 import dj_database_url
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-key-here')
@@ -50,12 +54,30 @@ TEMPLATES = [
     },
 ]
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
-        conn_max_age=600
-    )
-}
+# Database Configuration
+# Priority:
+# 1. External MySQL/MariaDB (via env vars - common for cPanel)
+# 2. DATABASE_URL (via env vars - common for PAAS)
+# 3. SQLite (local dev default)
+
+if os.environ.get('DB_NAME'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME'),
+            'USER': os.environ.get('DB_USER'),
+            'PASSWORD': os.environ.get('DB_PASSWORD'),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+        }
+    }
+else:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default='sqlite:///' + str(BASE_DIR / 'db.sqlite3'),
+            conn_max_age=600
+        )
+    }
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'America/New_York' # Vermont Time
@@ -71,6 +93,9 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 CSRF_TRUSTED_ORIGINS = ['https://*.railway.app', 'https://*.onrender.com']
+
+if os.environ.get('ALLOWED_HOSTS'):
+    CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in ALLOWED_HOSTS if host not in ['127.0.0.1', 'localhost']])
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
